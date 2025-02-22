@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/routes/app_pages.dart';
 
-
 import 'constants/app_theme.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/task_controller.dart';

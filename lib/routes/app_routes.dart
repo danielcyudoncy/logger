@@ -1,5 +1,6 @@
 // routes/app_routes.dart
 class Routes {
+  static const SPLASH = '/splash';
   static const LOGIN = '/login';
   static const ADMIN_HOME = '/admin_home';
   static const ASSIGNMENT_EDITOR_HOME = '/assignment_editor_home';
@@ -10,7 +11,4 @@ class Routes {
   static const USER_MANAGEMENT = '/user_management';
   static const EDIT_TASK = '/edit_task';
   static const REPORTER_HOME = '/reporter_home';
-
-
-
 }

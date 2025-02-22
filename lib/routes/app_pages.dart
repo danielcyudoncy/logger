@@ -9,14 +9,19 @@ import 'package:logger/views/home/cameraman_home_page.dart';
 import 'package:logger/views/home/head_of_depatment_home_page.dart';
 import 'package:logger/views/home/reporter_home_page.dart';
 import 'package:logger/views/home/user_management_page.dart';
+import 'package:logger/views/splash/splash_screen.dart';
 import 'package:logger/views/tasks/create_task_page.dart';
-import 'package:logger/views/tasks/edit_task_page.dart' as tasks; 
+import 'package:logger/views/tasks/edit_task_page.dart' as tasks;
 import 'app_routes.dart'; // Import the Routes class
 
 class AppPages {
-  static const initial = Routes.LOGIN;
+  static const initial = Routes.SPLASH;
 
   static final routes = [
+    GetPage(
+      name: Routes.SPLASH,
+      page: () => SplashScreen(),
+    ),
     GetPage(
       name: Routes.LOGIN,
       page: () => LoginPage(),
