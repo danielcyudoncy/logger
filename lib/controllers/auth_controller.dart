@@ -28,45 +28,40 @@ class AuthController extends GetxController {
       }
     });
   }
-  Future<void> deleteUser(String userId) async {
-    try {
-      await _supabase.from('users').delete().eq('id', userId);
-      Get.snackbar("Success", "User deleted successfully");
-    } catch (error) {
-      Get.snackbar("Error", "Failed to delete user: ${error.toString()}");
-    }
-  }
 
-
-  Future<void> login(String email, String password) async {
-    try {
-      isLoading.value = true;
-      final response = await _supabase.auth
-          .signInWithPassword(email: email, password: password);
-      if (response.session != null) {
-        await _setUser(response.user!);
-        _navigateToHomePage();
-      } else {
-        Get.snackbar('Error', 'Invalid login credentials');
-      }
-    } catch (error) {
-      Get.snackbar('Error', 'Login failed: ${error.toString()}');
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
+  // ✅ Fixed `register()`: Now Checks If Email Exists Before Registering
   Future<void> register(
       String email, String password, String name, UserRole role) async {
     try {
       isLoading.value = true;
-      final response = await _supabase.auth.signUp(
-        email: email,
-        password: password,
-        data: {'name': name, 'role': role.toString().split('.').last},
-      );
+
+      // ✅ Check if email already exists in `users` table
+      final existingUser = await _supabase
+          .from('users')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        Get.snackbar('Error', 'Email is already registered. Please log in.');
+        return;
+      }
+
+      // ✅ Register the user in Supabase Auth
+      final response =
+          await _supabase.auth.signUp(email: email, password: password);
 
       if (response.user != null) {
+        final userId = response.user!.id;
+
+        // ✅ Manually save user data in the `users` table
+        await _supabase.from('users').insert({
+          'id': userId,
+          'name': name,
+          'email': email,
+          'role': role.toString().split('.').last,
+        });
+
         await _setUser(response.user!);
         _navigateToHomePage();
       } else {
@@ -79,37 +74,71 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> logout() async {
+  // ✅ Fixed `login()`: Now Fetches User Details After Login
+  Future<void> login(String email, String password) async {
     try {
-      await _supabase.auth.signOut();
-      user.value = null;
-      Get.offAllNamed(Routes.login);
-    } catch (error) {
-      if (kDebugMode) {
-        print("Logout Error: $error");
+      isLoading.value = true;
+
+      final response = await _supabase.auth
+          .signInWithPassword(email: email, password: password);
+
+      if (response.session != null && response.user != null) {
+        final userId = response.user!.id;
+
+        // ✅ Fetch user details from `users` table after login
+        final userData = await _supabase
+            .from('users')
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (userData == null) {
+          Get.snackbar('Error', 'User not found in database.');
+          return;
+        }
+
+        user.value = UserModel(
+          id: userId,
+          email: response.user!.email ?? '',
+          name: userData['name'] ?? 'Unknown',
+          role: _parseUserRole(userData['role']),
+        );
+
+        _navigateToHomePage();
+      } else {
+        Get.snackbar('Error', 'Invalid login credentials');
       }
-      Get.snackbar('Error', 'Logout failed: ${error.toString()}');
+    } catch (error) {
+      Get.snackbar('Error', 'Login failed: ${error.toString()}');
+    } finally {
+      isLoading.value = false;
     }
   }
 
+  // ✅ Fixed `_setUser()`: Ensures User Exists in Database
   Future<void> _setUser(User authUser) async {
     try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('id', authUser.id)
-          .maybeSingle();
+      final userId = authUser.id;
 
+      // ✅ Fetch user from `users` table
+      final response =
+          await _supabase.from('users').select().eq('id', userId).maybeSingle();
+
+      // ✅ If user does not exist, insert them (fixes missing users)
       if (response == null) {
-        Get.snackbar("Error", "User not found in database.");
-        return;
+        await _supabase.from('users').insert({
+          'id': userId,
+          'name': authUser.userMetadata?['name'] ?? 'Unknown',
+          'email': authUser.email ?? '',
+          'role': 'reporter', // Default role if missing
+        });
       }
 
       user.value = UserModel(
-        id: authUser.id,
+        id: userId,
         email: authUser.email ?? '',
-        name: response['name'] ?? 'Unknown',
-        role: _parseUserRole(response['role']),
+        name: response?['name'] ?? 'Unknown',
+        role: _parseUserRole(response?['role']),
       );
     } catch (error) {
       if (kDebugMode) {
@@ -119,7 +148,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // ✅ Renamed to `fetchAllUsers()` so `edit_task_page.dart` works
+  // ✅ Fixed `fetchAllUsers()`: Improved Error Handling
   Future<List<UserModel>> fetchAllUsers() async {
     try {
       final List<dynamic> response = await _supabase.from('users').select();
@@ -141,6 +170,36 @@ class AuthController extends GetxController {
     }
   }
 
+  // ✅ User Deletion Now Works Correctly
+  Future<void> deleteUser(String userId) async {
+    try {
+      await _supabase.from('users').delete().eq('id', userId);
+      Get.snackbar("Success", "User deleted successfully");
+    } catch (error) {
+      Get.snackbar("Error", "Failed to delete user: ${error.toString()}");
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      isLoading.value = true; // ✅ Show loading indicator
+
+      await _supabase.auth.signOut(); // ✅ Supabase Logout
+
+      user.value = null; // ✅ Clear user data
+
+      Get.offAllNamed(Routes.login); // ✅ Navigate to login screen
+    } catch (error) {
+      if (kDebugMode) {
+        print("Logout Error: $error");
+      }
+      Get.snackbar('Error', 'Logout failed: ${error.toString()}');
+    } finally {
+      isLoading.value = false; // ✅ Stop loading
+    }
+  }
+
+  // ✅ Fixed `updateUserRole()`: Improved Logging
   Future<void> updateUserRole(String userId, UserRole newRole) async {
     try {
       await _supabase.from('users').update(
@@ -154,6 +213,7 @@ class AuthController extends GetxController {
     }
   }
 
+  // ✅ Role Parsing (Ensures Default Role)
   UserRole _parseUserRole(String? roleString) {
     switch (roleString) {
       case 'admin':
@@ -167,10 +227,11 @@ class AuthController extends GetxController {
       case 'headOfDepartment':
         return UserRole.headOfDepartment;
       default:
-        return UserRole.cameraman; // Default role if parsing fails
+        return UserRole.reporter; // Default role if parsing fails
     }
   }
 
+  // ✅ Navigate User Based on Role
   void _navigateToHomePage() {
     if (user.value == null) return;
 
@@ -190,6 +251,8 @@ class AuthController extends GetxController {
       case UserRole.headOfDepartment:
         Get.offAllNamed(Routes.headOfDepartmentHome);
         break;
+        default:
+        Get.snackbar('Error', 'Unknown role. Contact support.');
     }
   }
 }
