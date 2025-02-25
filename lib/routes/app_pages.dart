@@ -1,5 +1,4 @@
 // routes/app_pages.dart
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/views/auth/login_page.dart';
 import 'package:logger/views/auth/register_page.dart';
@@ -15,59 +14,53 @@ import 'package:logger/views/tasks/edit_task_page.dart' as tasks;
 import 'app_routes.dart'; // Import the Routes class
 
 class AppPages {
-  static const initial = Routes.SPLASH;
+  static const initial = Routes.splash;
 
   static final routes = [
     GetPage(
-      name: Routes.SPLASH,
-      page: () => SplashScreen(),
+      name: Routes.splash,
+      page: () =>  SplashScreen(),
     ),
     GetPage(
-      name: Routes.LOGIN,
-      page: () => LoginPage(),
+      name: Routes.login,
+      page: () =>  LoginPage(),
     ),
     GetPage(
-      name: Routes.REGISTER,
+      name: Routes.register,
       page: () => const RegisterPage(),
     ),
     GetPage(
-      name: Routes.ADMIN_HOME,
-      page: () => AdminHomePage(),
+      name: Routes.adminHome,
+      page: () => const AdminHomePage(),
     ),
     GetPage(
-      name: Routes.ASSIGNMENT_EDITOR_HOME,
-      page: () => AssignmentEditorHomePage(),
+      name: Routes.assignmentEditorHome,
+      page: () => const AssignmentEditorHomePage(),
     ),
     GetPage(
-      name: Routes.CAMERAMAN_HOME,
-      page: () => CameramanHomePage(),
+      name: Routes.cameramanHome,
+      page: () => const CameramanHomePage(),
     ),
     GetPage(
-      name: Routes.HEAD_OF_DEPARTMENT_HOME,
-      page: () => HeadOfDepartmentHomePage(),
+      name: Routes.headOfDepartmentHome,
+      page: () => const HeadOfDepartmentHomePage(),
     ),
     GetPage(
-      name: Routes.CREATE_TASK,
-      page: () => CreateTask(),
+      name: Routes.createTask,
+      page: () =>  const CreateTaskPage(),
     ),
     GetPage(
-      name: Routes.USER_MANAGEMENT,
-      page: () => UserManagementPage(),
+      name: Routes.userManagement,
+      page: () =>  const UserManagementPage(),
     ),
     GetPage(
-      name: Routes.EDIT_TASK,
-      page: () {
-        final task = Get.arguments;
-        if (task == null) {
-          Get.snackbar("Error", "No task data provided");
-          return const Placeholder(); // Prevents crash
-        }
-        return tasks.EditTaskPage(task: task); // Use the prefixed import
-      },
+      name: Routes.editTask,
+      page: () =>
+          const tasks.EditTaskPage(), // ✅ Pass Get.arguments inside EditTaskPage
     ),
     GetPage(
-      name: Routes.REPORTER_HOME,
-      page: () => ReporterHomePage(),
+      name: Routes.reporterHome,
+      page: () =>  const ReporterHomePage(),
     ),
   ];
 }

@@ -1,4 +1,6 @@
+// controllers/splash_controller.dart
 import 'package:get/get.dart';
+import 'package:logger/models/user_model.dart';
 import '../routes/app_routes.dart';
 import 'auth_controller.dart';
 
@@ -13,10 +15,38 @@ class SplashController extends GetxController {
 
   void _navigateToNextScreen() async {
     await Future.delayed(const Duration(seconds: 3)); // 3-second delay
+
     if (authController.user.value != null) {
-      Get.offAllNamed(Routes.ADMIN_HOME); // Redirect logged-in users
+      _navigateToHomePage(); // Navigate based on role
     } else {
-      Get.offAllNamed(Routes.LOGIN); // Redirect to Login screen
+      Get.offAllNamed(Routes.login); // Redirect to Login screen
+    }
+  }
+
+  void _navigateToHomePage() {
+    final user = authController.user.value;
+    if (user == null) {
+      Get.offAllNamed(Routes.login);
+      return;
+    }
+
+    // ✅ Navigate users to their specific home page based on role
+    switch (user.role) {
+      case UserRole.admin:
+        Get.offAllNamed(Routes.adminHome);
+        break;
+      case UserRole.assignmentEditor:
+        Get.offAllNamed(Routes.assignmentEditorHome);
+        break;
+      case UserRole.cameraman:
+        Get.offAllNamed(Routes.cameramanHome);
+        break;
+      case UserRole.reporter:
+        Get.offAllNamed(Routes.reporterHome);
+        break;
+      case UserRole.headOfDepartment:
+        Get.offAllNamed(Routes.headOfDepartmentHome);
+        break;
     }
   }
 }

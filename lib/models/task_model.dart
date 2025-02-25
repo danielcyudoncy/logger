@@ -8,9 +8,9 @@ class Task {
   final String createdBy;
   final String createdByName;
   final bool isCompleted;
-  final DateTime? completionTimestamp;
   final String status;
-  final DateTime? dueDate; // ✅ Add dueDate field
+  final DateTime? dueDate;
+  final String? completionFile; // ✅ Add this field
 
   Task({
     required this.id,
@@ -21,28 +21,25 @@ class Task {
     required this.createdBy,
     required this.createdByName,
     required this.isCompleted,
-    this.completionTimestamp,
     required this.status,
-    this.dueDate, // ✅ Add this to the constructor
+    this.dueDate,
+    this.completionFile, // ✅ Initialize it as nullable
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      assignedTo: json['assignedTo'] as String,
-      assignedToName: json['assignedToName'] as String,
-      createdBy: json['createdBy'] as String,
-      createdByName: json['createdByName'] as String,
-      isCompleted: json['isCompleted'] as bool,
-      completionTimestamp: json['completionTimestamp'] != null
-          ? DateTime.parse(json['completionTimestamp'])
-          : null,
+      id: json['id'],
+      title: json['title'],
+      description: json['description'] ?? '',
+      assignedTo: json['assigned_to'],
+      assignedToName: json['assigned_to_name'] ?? 'Unknown',
+      createdBy: json['created_by'],
+      createdByName: json['created_by_name'] ?? 'Unknown',
+      isCompleted: json['is_completed'] ?? false,
       status: json['status'] ?? 'pending',
-      dueDate: json['dueDate'] != null
-          ? DateTime.parse(json['dueDate'])
-          : null, // ✅ Parse dueDate
+      dueDate:
+          json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
+      completionFile: json['completion_file'], // ✅ Parse from JSON
     );
   }
 
@@ -51,17 +48,18 @@ class Task {
       'id': id,
       'title': title,
       'description': description,
-      'assignedTo': assignedTo,
-      'assignedToName': assignedToName,
-      'createdBy': createdBy,
-      'createdByName': createdByName,
-      'isCompleted': isCompleted,
-      'completionTimestamp': completionTimestamp?.toIso8601String(),
+      'assigned_to': assignedTo,
+      'assigned_to_name': assignedToName,
+      'created_by': createdBy,
+      'created_by_name': createdByName,
+      'is_completed': isCompleted,
       'status': status,
-      'dueDate': dueDate?.toIso8601String(), // ✅ Convert dueDate to String
+      'due_date': dueDate?.toIso8601String(),
+      'completion_file': completionFile, // ✅ Convert to JSON
     };
   }
 
+  // ✅ Method to update task properties
   Task copyWith({
     String? id,
     String? title,
@@ -71,9 +69,9 @@ class Task {
     String? createdBy,
     String? createdByName,
     bool? isCompleted,
-    DateTime? completionTimestamp,
     String? status,
-    DateTime? dueDate, // ✅ Add this to copyWith()
+    DateTime? dueDate,
+    String? completionFile, // ✅ Allow updating completion file
   }) {
     return Task(
       id: id ?? this.id,
@@ -84,9 +82,9 @@ class Task {
       createdBy: createdBy ?? this.createdBy,
       createdByName: createdByName ?? this.createdByName,
       isCompleted: isCompleted ?? this.isCompleted,
-      completionTimestamp: completionTimestamp ?? this.completionTimestamp,
       status: status ?? this.status,
-      dueDate: dueDate ?? this.dueDate, // ✅ Ensure dueDate is updated
+      dueDate: dueDate ?? this.dueDate,
+      completionFile: completionFile ?? this.completionFile,
     );
   }
 }

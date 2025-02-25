@@ -1,3 +1,4 @@
+// myapp.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/routes/app_pages.dart';
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       initialRoute: AppPages.initial,
       getPages: AppPages.routes,
       initialBinding: BindingsBuilder(() {
-        Get.put(AuthController());
+        Get.put(AuthController(), permanent: true);
         Get.put(TaskController());
       }),
       debugShowCheckedModeBanner: false,

@@ -16,7 +16,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '', // ✅ Default to empty string if missing
       name: json['name'] as String? ?? 'Unknown',
       email: json['email'] as String? ?? 'No Email',
       role: _parseUserRole(json['role'] as String?),
@@ -24,6 +24,8 @@ class UserModel {
   }
 
   static UserRole _parseUserRole(String? roleString) {
+    if (roleString == null) return UserRole.cameraman; // ✅ Default role
+
     switch (roleString) {
       case 'admin':
         return UserRole.admin;
@@ -36,8 +38,12 @@ class UserModel {
       case 'headOfDepartment':
         return UserRole.headOfDepartment;
       default:
-        return UserRole.cameraman; // Default fallback role
+        return UserRole.cameraman; // ✅ Safe fallback
     }
+  }
+
+  String roleToString() {
+    return role.toString().split('.').last;
   }
 
   Map<String, dynamic> toJson() {
@@ -45,7 +51,7 @@ class UserModel {
       'id': id,
       'name': name,
       'email': email,
-      'role': role.toString().split('.').last,
+      'role': roleToString(),
     };
   }
 }

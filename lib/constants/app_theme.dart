@@ -1,3 +1,4 @@
+// constants/app_theme.dart
 import 'package:flutter/material.dart';
 
 class AppTheme {
@@ -25,7 +26,14 @@ class AppTheme {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
       ),
+      enabledBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.grey),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.blue, width: 2),
+      ),
       filled: true,
     ),
+
   );
 }

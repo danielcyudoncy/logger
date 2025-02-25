@@ -1,14 +1,14 @@
 // routes/app_routes.dart
 class Routes {
-  static const SPLASH = '/splash';
-  static const LOGIN = '/login';
-  static const ADMIN_HOME = '/admin_home';
-  static const ASSIGNMENT_EDITOR_HOME = '/assignment_editor_home';
-  static const CAMERAMAN_HOME = '/cameraman_home';
-  static const HEAD_OF_DEPARTMENT_HOME = '/head_of_department_home';
-  static const CREATE_TASK = '/create_task';
-  static const REGISTER = '/register';
-  static const USER_MANAGEMENT = '/user_management';
-  static const EDIT_TASK = '/edit_task';
-  static const REPORTER_HOME = '/reporter_home';
+  static const splash = '/splash';
+  static const login = '/login';
+  static const adminHome = '/admin_home';
+  static const assignmentEditorHome = '/assignment_editor_home';
+  static const cameramanHome = '/cameraman_home';
+  static const headOfDepartmentHome = '/head_of_department_home';
+  static const createTask = '/create_task';
+  static const register = '/register';
+  static const userManagement = '/user_management';
+  static const editTask = '/edit_task';
+  static const reporterHome = '/reporter_home';
 }

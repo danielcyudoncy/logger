@@ -10,9 +10,22 @@ final supabase = Supabase.instance.client;
 class LoginPage extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final AuthController authController = Get.find<AuthController>();
+  final AuthController authController =
+      Get.put(AuthController(), permanent: true);
 
   LoginPage({super.key});
+
+  void _handleLogin() {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      Get.snackbar('Error', 'Email and password cannot be empty');
+      return;
+    }
+
+    authController.login(email, password);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,24 +47,23 @@ class LoginPage extends StatelessWidget {
               obscureText: true,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                authController.login(emailController.text, passwordController.text);
-              },
-              child: const Text('Login'),
-            ),
+            Obx(() => ElevatedButton(
+                  onPressed:
+                      authController.isLoading.value ? null : _handleLogin,
+                  child: authController.isLoading.value
+                      ? const CircularProgressIndicator()
+                      : const Text('Login'),
+                )),
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {
-                Get.toNamed(Routes.REGISTER);
+                Get.toNamed(Routes.register);
               },
               child: const Text('Create an account'),
             ),
-            
           ],
         ),
       ),
     );
   }
 }
-

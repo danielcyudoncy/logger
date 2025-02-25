@@ -1,36 +1,45 @@
 // views/tasks/edit_task_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../../controllers/task_controller.dart';
 import '../../controllers/auth_controller.dart';
 import '../../models/task_model.dart';
 import '../../models/user_model.dart';
 
 class EditTaskPage extends StatefulWidget {
-  final Task task;
-  const EditTaskPage({super.key, required this.task});
+  const EditTaskPage({super.key});
 
   @override
-  _EditTaskPageState createState() => _EditTaskPageState();
+  EditTaskPageState createState() => EditTaskPageState();
 }
 
-class _EditTaskPageState extends State<EditTaskPage> {
+class EditTaskPageState extends State<EditTaskPage> {
   final TaskController taskController = Get.find<TaskController>();
   final AuthController authController = Get.find<AuthController>();
+
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
+
   String? selectedUserId;
   bool isCompleted = false;
-  DateTime? completionTimestamp;
+  DateTime? dueDate;
+  late Task task;
 
   @override
   void initState() {
     super.initState();
-    titleController.text = widget.task.title;
-    descriptionController.text = widget.task.description;
-    selectedUserId = widget.task.assignedTo;
-    isCompleted = widget.task.isCompleted;
-    completionTimestamp = widget.task.completionTimestamp;
+    if (Get.arguments == null) {
+      Get.snackbar("Error", "No task data provided.");
+      Get.back();
+      return;
+    }
+    task = Get.arguments as Task;
+    titleController.text = task.title;
+    descriptionController.text = task.description;
+    selectedUserId = task.assignedTo;
+    isCompleted = task.isCompleted;
+    dueDate = task.dueDate;
   }
 
   @override
@@ -41,15 +50,16 @@ class _EditTaskPageState extends State<EditTaskPage> {
   }
 
   void _updateTask() {
-    final updatedTask = widget.task.copyWith(
-      title: titleController.text,
-      description: descriptionController.text,
-      assignedTo: selectedUserId ?? widget.task.assignedTo,
+    final updatedTask = task.copyWith(
+      title: titleController.text.trim(),
+      description: descriptionController.text.trim(),
+      assignedTo: selectedUserId ?? task.assignedTo,
       isCompleted: isCompleted,
-      completionTimestamp: isCompleted ? DateTime.now() : null,
+      dueDate: dueDate,
     );
+
     taskController.updateTask(updatedTask);
-    Get.back(); // Navigate back after update
+    Get.back();
   }
 
   @override
@@ -72,7 +82,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
             ),
             const SizedBox(height: 16),
             FutureBuilder<List<UserModel>>(
-              future: authController.getAllUsers(),
+              future: authController.fetchAllUsers(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -84,11 +94,13 @@ class _EditTaskPageState extends State<EditTaskPage> {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(child: Text('No users found.'));
                 }
+
                 final users = snapshot.data!
                     .where((user) =>
                         user.role == UserRole.cameraman ||
                         user.role == UserRole.reporter)
                     .toList();
+
                 return DropdownButtonFormField<String>(
                   value: selectedUserId,
                   decoration: const InputDecoration(labelText: 'Assign To'),
@@ -107,22 +119,37 @@ class _EditTaskPageState extends State<EditTaskPage> {
               },
             ),
             const SizedBox(height: 16),
+            ListTile(
+              title: Text(
+                dueDate == null
+                    ? 'Pick a Due Date'
+                    : 'Due Date: ${DateFormat.yMMMd().format(dueDate!)}',
+              ),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: dueDate ?? DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2100),
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    dueDate = pickedDate;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 16),
             SwitchListTile(
               title: const Text('Mark as Completed'),
               value: isCompleted,
               onChanged: (value) {
                 setState(() {
                   isCompleted = value;
-                  completionTimestamp = value ? DateTime.now() : null;
                 });
               },
             ),
-            if (completionTimestamp != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                    'Completed on: ${completionTimestamp!.toLocal().toString()}'),
-              ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _updateTask,
@@ -132,4 +159,5 @@ class _EditTaskPageState extends State<EditTaskPage> {
         ),
       ),
     );
-  }}
+  }
+}
