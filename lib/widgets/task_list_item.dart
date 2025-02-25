@@ -1,7 +1,6 @@
-// widget/task_list)item.dart
+// widgets/task_list_item.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../models/task_model.dart';
 
 class TaskListItem extends StatelessWidget {
@@ -84,6 +83,7 @@ class TaskListItem extends StatelessWidget {
     );
   }
 
+  // ✅ Fixed `_getDueDateColor()`
   Color _getDueDateColor(ThemeData theme) {
     if (task.dueDate == null) return theme.colorScheme.onSurface;
 
@@ -95,15 +95,14 @@ class TaskListItem extends StatelessWidget {
     final difference = task.dueDate!.difference(now).inDays;
 
     if (difference < 0) {
-      return theme.colorScheme.error;
+      return theme.colorScheme.error; // ✅ Overdue tasks = Red
     } else if (difference <= 2) {
-      return theme.colorScheme.error.withOpacity(0.8);
+      return Colors.red.withAlpha(
+          204); // ✅ Urgent (Less than 2 days) = Dark Red (80% opacity)
     } else if (difference <= 7) {
-      return theme.colorScheme.warning ?? Colors.orange;
+      return Colors.orange; // ✅ Due Soon (Less than 7 days) = Orange
     }
 
-    return theme.colorScheme.onSurface;
+    return theme.colorScheme.onSurface; // ✅ Normal due date color
   }
-}extension on ColorScheme {
-  get warning => null;
 }
