@@ -24,82 +24,115 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
   UserModel? selectedAssignee;
 
   @override
+  void dispose() {
+    titleController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildUserDropdown() {
+    return Obx(() {
+      final currentUser = authController.user.value;
+      if (currentUser == null) return const SizedBox();
+
+      return FutureBuilder<List<UserModel>>(
+        future: authController.fetchAllUsers(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final users = snapshot.data ?? [];
+          final assignableUsers = users.where((user) {
+            switch (currentUser.role) {
+              case UserRole.admin:
+                return true;
+              case UserRole.headOfDepartment:
+                return user.role == UserRole.reporter ||
+                    user.role == UserRole.cameraman ||
+                    user.role == UserRole.assignmentEditor;
+              case UserRole.assignmentEditor:
+                return user.role == UserRole.reporter ||
+                    user.role == UserRole.cameraman;
+              default:
+                return false;
+            }
+          }).toList();
+
+          return DropdownButtonFormField<String>(
+            value: selectedAssignee?.id,
+            hint: const Text('Select User'),
+            decoration: const InputDecoration(labelText: 'Assign To'),
+            items: assignableUsers.map((user) {
+              return DropdownMenuItem(
+                value: user.id,
+                child: Text('${user.name} (${user.roleToString()})'),
+              );
+            }).toList(),
+            onChanged: (userId) {
+              if (userId != null) {
+                setState(() {
+                  selectedAssignee =
+                      assignableUsers.firstWhere((u) => u.id == userId);
+                });
+              }
+            },
+          );
+        },
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Task')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Create Task'),
+        elevation: 2,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ✅ Task Title Input
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(labelText: 'Task Title'),
-            ),
-            const SizedBox(height: 16),
-
-            // ✅ Assign Task to User
-            FutureBuilder<List<UserModel>>(
-              future: authController.fetchAllUsers(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                      child: Text('Error loading users: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No users found.'));
-                }
-
-                final users = snapshot.data!;
-                return DropdownButtonFormField<UserModel>(
-                  value: selectedAssignee,
-                  decoration: const InputDecoration(labelText: 'Assign To'),
-                  items: users.map((user) {
-                    return DropdownMenuItem(
-                      value: user,
-                      child: Text(user.name),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedAssignee = value;
-                    });
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // ✅ Select Due Date
-            ListTile(
-              title: Text(
-                selectedDueDate == null
-                    ? 'Pick a Due Date'
-                    : 'Due Date: ${selectedDueDate!.toLocal().toString().split(' ')[0]}',
+              decoration: const InputDecoration(
+                labelText: 'Task Title',
+                border: OutlineInputBorder(),
               ),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: () async {
-                final DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2100),
-                );
-                if (pickedDate != null) {
-                  setState(() {
-                    selectedDueDate = pickedDate;
-                  });
-                }
-              },
+            ),
+            const SizedBox(height: 16),
+            _buildUserDropdown(),
+            const SizedBox(height: 16),
+            Card(
+              child: ListTile(
+                title: Text(
+                  selectedDueDate == null
+                      ? 'Pick a Due Date'
+                      : 'Due Date: ${selectedDueDate!.toLocal().toString().split(' ')[0]}',
+                ),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (pickedDate != null) {
+                    setState(() {
+                      selectedDueDate = pickedDate;
+                    });
+                  }
+                },
+              ),
             ),
             const SizedBox(height: 24),
-
-            // ✅ Create Task Button
             ElevatedButton(
-              onPressed: _createTask, // ✅ Calls the function to create a task
+              onPressed: _createTask,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
               child: const Text('Create Task'),
             ),
           ],
@@ -108,12 +141,15 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
     );
   }
 
-  // ✅ Create Task Function
   void _createTask() {
     if (titleController.text.isEmpty ||
         selectedAssignee == null ||
         selectedDueDate == null) {
-      Get.snackbar("Error", "Please fill in all fields.");
+      Get.snackbar(
+        "Required Fields",
+        "Please fill in all fields",
+        snackPosition: SnackPosition.TOP,
+      );
       return;
     }
 
@@ -132,6 +168,12 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
 
     taskController.createTask(newTask);
     Get.back();
-    Get.snackbar("Success", "Task created successfully!");
+    Get.snackbar(
+      "Success",
+      "Task created successfully!",
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+    );
   }
 }

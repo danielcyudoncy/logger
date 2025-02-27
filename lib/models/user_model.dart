@@ -1,5 +1,5 @@
 // models/user_model.dart
-enum UserRole { admin, assignmentEditor, cameraman, reporter, headOfDepartment }
+enum UserRole { admin, assignmentEditor, cameraman, reporter, headOfDepartment, user }
 
 class UserModel {
   final String id;

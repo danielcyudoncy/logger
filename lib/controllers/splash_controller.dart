@@ -1,6 +1,6 @@
 // controllers/splash_controller.dart
 import 'package:get/get.dart';
-import 'package:logger/models/user_model.dart';
+import '../models/user_model.dart'; // Fixed import path
 import '../routes/app_routes.dart';
 import 'auth_controller.dart';
 
@@ -47,6 +47,8 @@ class SplashController extends GetxController {
       case UserRole.headOfDepartment:
         Get.offAllNamed(Routes.headOfDepartmentHome);
         break;
+      default:
+        Get.offAllNamed(Routes.login);
     }
   }
 }
