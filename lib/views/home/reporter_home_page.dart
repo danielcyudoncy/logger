@@ -53,17 +53,23 @@ class _ReporterHomePageState extends State<ReporterHomePage> {
           const SizedBox(height: 16),
 
           // ✅ Task Filters (All, Pending, Submitted, Approved, Rejected)
-          Padding(
+         Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _filterButton("All"),
-                _filterButton("Pending"),
-                _filterButton("Submitted"),
-                _filterButton("Approved"),
-                _filterButton("Rejected"),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal, // ✅ Allow horizontal scrolling
+              child: Row(
+                children: [
+                  _filterButton("All"),
+                  const SizedBox(width: 8),
+                  _filterButton("Pending"),
+                  const SizedBox(width: 8),
+                  _filterButton("Submitted"),
+                  const SizedBox(width: 8),
+                  _filterButton("Approved"),
+                  const SizedBox(width: 8),
+                  _filterButton("Rejected"),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

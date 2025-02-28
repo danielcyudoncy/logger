@@ -7,15 +7,27 @@ import '../../routes/app_routes.dart';
 
 final supabase = Supabase.instance.client;
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final AuthController authController =
-      Get.put(AuthController(), permanent: true);
+      Get.put(AuthController()); // ✅ Force new instance
 
-  LoginPage({super.key});
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
@@ -24,7 +36,12 @@ class LoginPage extends StatelessWidget {
       return;
     }
 
-    authController.login(email, password);
+    try {
+      await authController.login(email, password);
+    } catch (e) {
+      Get.snackbar('Login Failed', e.toString(),
+          backgroundColor: Colors.red, colorText: Colors.white);
+    }
   }
 
   @override
@@ -39,6 +56,7 @@ class LoginPage extends StatelessWidget {
             TextField(
               controller: emailController,
               decoration: const InputDecoration(labelText: 'Email'),
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             TextField(
@@ -51,14 +69,12 @@ class LoginPage extends StatelessWidget {
                   onPressed:
                       authController.isLoading.value ? null : _handleLogin,
                   child: authController.isLoading.value
-                      ? const CircularProgressIndicator()
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Login'),
                 )),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () {
-                Get.toNamed(Routes.register);
-              },
+              onPressed: () => Get.toNamed(Routes.register),
               child: const Text('Create an account'),
             ),
           ],
