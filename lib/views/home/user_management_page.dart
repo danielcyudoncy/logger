@@ -1,4 +1,3 @@
-// views/home/user_management_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
@@ -32,27 +31,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   Future<void> _fetchUsers() async {
-    final currentUser = authController.user.value;
-    if (currentUser == null) return;
-
-    final users = await authController.fetchAllUsers();
-
-    final filteredList = users.where((user) {
-      switch (currentUser.role) {
-        case UserRole.admin:
-        case UserRole.headOfDepartment:
-          return true;
-        case UserRole.assignmentEditor:
-          return user.role == UserRole.cameraman ||
-              user.role == UserRole.reporter;
-        default:
-          return false;
-      }
-    }).toList();
-
+    final users = await authController.fetchAssignableUsers();
     setState(() {
-      allUsers = filteredList;
-      filteredUsers = filteredList;
+      allUsers = users;
+      filteredUsers = users;
     });
   }
 
@@ -69,15 +51,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
   List<UserRole> _getAllowedRoles(UserRole currentUserRole) {
     switch (currentUserRole) {
       case UserRole.admin:
-        return UserRole.values;
+        return UserRole.values; // Admin can assign all roles
       case UserRole.headOfDepartment:
         return [
+          UserRole.assignmentEditor,
           UserRole.cameraman,
-          UserRole.reporter,
-          UserRole.assignmentEditor
-        ];
+          UserRole.reporter
+        ]; // HoD can only manage these roles
       case UserRole.assignmentEditor:
-        return [UserRole.cameraman, UserRole.reporter];
+        return [UserRole.cameraman, UserRole.reporter]; // Editor manages these
       default:
         return [];
     }
@@ -111,100 +93,99 @@ class _UserManagementPageState extends State<UserManagementPage> {
           ),
         ],
       ),
-      body: Obx(() {
-        final currentUser = authController.user.value;
-        if (currentUser == null) {
-          return const Center(child: Text('Please login to manage users'));
-        }
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: TextField(
-                controller: searchController,
-                onChanged: _searchUsers,
-                decoration: InputDecoration(
-                  labelText: 'Search Users',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              controller: searchController,
+              onChanged: _searchUsers,
+              decoration: InputDecoration(
+                labelText: 'Search Users',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
-            Expanded(
-              child: filteredUsers.isEmpty
-                  ? const Center(child: Text('No users found'))
-                  : ListView.builder(
-                      itemCount: filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = filteredUsers[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+          ),
+          Expanded(
+            child: filteredUsers.isEmpty
+                ? const Center(child: Text('No users found'))
+                : ListView.builder(
+                    itemCount: filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = filteredUsers[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: CircleAvatar(
+                            child: Text(user.name[0].toUpperCase()),
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
-                            leading: CircleAvatar(
-                              child: Text(user.name[0].toUpperCase()),
-                            ),
-                            title: Text(user.name),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(user.email),
-                                Text('Role: ${user.roleToString()}'),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_getAllowedRoles(currentUser.role)
-                                    .isNotEmpty)
-                                  DropdownButton<UserRole>(
-                                    value: user.role,
-                                    onChanged: (newRole) async {
-                                      if (newRole != null) {
-                                        await authController.updateUserRole(
-                                          user.id,
-                                          newRole,
-                                        );
-                                        await _fetchUsers();
-                                      }
-                                    },
-                                    items: _getAllowedRoles(currentUser.role)
-                                        .map((role) {
-                                      return DropdownMenuItem(
-                                        value: role,
-                                        child: Text(
-                                            role.toString().split('.').last),
+                          title: Text(user.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user.email),
+                              Text('Role: ${user.roleToString()}'),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_getAllowedRoles(
+                                      authController.user.value!.role)
+                                  .isNotEmpty)
+                                DropdownButton<UserRole>(
+                                  value: user.role,
+                                  onChanged: (newRole) async {
+                                    if (newRole != null) {
+                                      await authController.updateUserRole(
+                                        user.id,
+                                        newRole,
                                       );
-                                    }).toList(),
+                                      await _fetchUsers();
+                                    }
+                                  },
+                                  items: _getAllowedRoles(
+                                          authController.user.value!.role)
+                                      .map((role) {
+                                    return DropdownMenuItem(
+                                      value: role,
+                                      child: Text(role
+                                          .toString()
+                                          .split('.')
+                                          .last
+                                          .capitalizeFirst!),
+                                    );
+                                  }).toList(),
+                                ),
+                              const SizedBox(width: 10),
+                              if (authController.user.value!.role ==
+                                      UserRole.admin ||
+                                  authController.user.value!.role ==
+                                      UserRole.headOfDepartment)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
                                   ),
-                                const SizedBox(width: 10),
-                                if (currentUser.role == UserRole.admin ||
-                                    currentUser.role ==
-                                        UserRole.headOfDepartment)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                    ),
-                                    tooltip: 'Delete user',
-                                    onPressed: () => _confirmDelete(user),
-                                  ),
-                              ],
-                            ),
+                                  tooltip: 'Delete user',
+                                  onPressed: () => _confirmDelete(user),
+                                ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      }),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

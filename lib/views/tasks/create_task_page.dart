@@ -1,4 +1,3 @@
-// views/tasks/create_task_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
@@ -14,72 +13,46 @@ class CreateTaskPage extends StatefulWidget {
 }
 
 class _CreateTaskPageState extends State<CreateTaskPage> {
-  final TaskController taskController =
-      Get.put(TaskController(), permanent: true);
-  final AuthController authController =
-      Get.put(AuthController(), permanent: true);
+  final TaskController taskController = Get.put(TaskController(), permanent: true);
+  final AuthController authController = Get.put(AuthController(), permanent: true);
 
   final TextEditingController titleController = TextEditingController();
   DateTime? selectedDueDate;
   UserModel? selectedAssignee;
+  List<UserModel> assignableUsers = [];
+  late UserModel currentUser;
+  bool canAssignTasks = false;
+
+  @override
+  void initState() {
+    super.initState();
+    currentUser = authController.user.value!;
+
+    // ✅ Allow task assignment only for Admins, HoDs, and Assignment Editors
+    canAssignTasks = currentUser.role == UserRole.admin ||
+        currentUser.role == UserRole.headOfDepartment ||
+        currentUser.role == UserRole.assignmentEditor;
+
+    if (canAssignTasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchAssignableUsers(); // ✅ Prevents unnecessary looping
+      });
+    }
+  }
+
+  Future<void> _fetchAssignableUsers() async {
+    final users = await authController.fetchAssignableUsers();
+    if (mounted) {
+      setState(() {
+        assignableUsers = users;
+      });
+    }
+  }
 
   @override
   void dispose() {
     titleController.dispose();
     super.dispose();
-  }
-
-  Widget _buildUserDropdown() {
-    return Obx(() {
-      final currentUser = authController.user.value;
-      if (currentUser == null) return const SizedBox();
-
-      return FutureBuilder<List<UserModel>>(
-        future: authController.fetchAllUsers(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final users = snapshot.data ?? [];
-          final assignableUsers = users.where((user) {
-            switch (currentUser.role) {
-              case UserRole.admin:
-                return true;
-              case UserRole.headOfDepartment:
-                return user.role == UserRole.reporter ||
-                    user.role == UserRole.cameraman ||
-                    user.role == UserRole.assignmentEditor;
-              case UserRole.assignmentEditor:
-                return user.role == UserRole.reporter ||
-                    user.role == UserRole.cameraman;
-              default:
-                return false;
-            }
-          }).toList();
-
-          return DropdownButtonFormField<String>(
-            value: selectedAssignee?.id,
-            hint: const Text('Select User'),
-            decoration: const InputDecoration(labelText: 'Assign To'),
-            items: assignableUsers.map((user) {
-              return DropdownMenuItem(
-                value: user.id,
-                child: Text('${user.name} (${user.roleToString()})'),
-              );
-            }).toList(),
-            onChanged: (userId) {
-              if (userId != null) {
-                setState(() {
-                  selectedAssignee =
-                      assignableUsers.firstWhere((u) => u.id == userId);
-                });
-              }
-            },
-          );
-        },
-      );
-    });
   }
 
   @override
@@ -102,8 +75,29 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildUserDropdown(),
+
+            // ✅ Show "Assign To" dropdown only if the user can assign tasks
+            if (canAssignTasks)
+              DropdownButtonFormField<UserModel>(
+                value: selectedAssignee,
+                hint: const Text('Select Assignee'),
+                decoration: const InputDecoration(labelText: 'Assign To'),
+                items: assignableUsers.map((user) {
+                  return DropdownMenuItem(
+                    value: user,
+                    child: Text('${user.name} (${user.roleToString()})'),
+                  );
+                }).toList(),
+                onChanged: (UserModel? newValue) {
+                  setState(() {
+                    selectedAssignee = newValue;
+                  });
+                },
+              ),
+
             const SizedBox(height: 16),
+
+            // ✅ Due Date (Mandatory for All Users)
             Card(
               child: ListTile(
                 title: Text(
@@ -127,6 +121,7 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
                 },
               ),
             ),
+
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _createTask,
@@ -142,9 +137,7 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
   }
 
   void _createTask() {
-    if (titleController.text.isEmpty ||
-        selectedAssignee == null ||
-        selectedDueDate == null) {
+    if (titleController.text.isEmpty || selectedDueDate == null) {
       Get.snackbar(
         "Required Fields",
         "Please fill in all fields",
@@ -153,14 +146,21 @@ class _CreateTaskPageState extends State<CreateTaskPage> {
       return;
     }
 
+    // ✅ If user cannot assign tasks, the task is assigned to themselves
+    String assignedUserId = canAssignTasks
+        ? selectedAssignee?.id ?? currentUser.id
+        : currentUser.id;
+    String assignedUserName =
+        canAssignTasks ? selectedAssignee?.name ?? currentUser.name : currentUser.name;
+
     Task newTask = Task(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: titleController.text.trim(),
       description: "",
-      assignedTo: selectedAssignee!.id,
-      assignedToName: selectedAssignee!.name,
-      createdBy: authController.user.value!.id,
-      createdByName: authController.user.value!.name,
+      assignedTo: assignedUserId,
+      assignedToName: assignedUserName,
+      createdBy: currentUser.id,
+      createdByName: currentUser.name,
       isCompleted: false,
       status: "pending",
       dueDate: selectedDueDate,

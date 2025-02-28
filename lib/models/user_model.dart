@@ -1,31 +1,39 @@
-// models/user_model.dart
-enum UserRole { admin, assignmentEditor, cameraman, reporter, headOfDepartment, user }
+import 'task_model.dart';
+
+enum UserRole { admin, assignmentEditor, cameraman, reporter, headOfDepartment }
 
 class UserModel {
   final String id;
   final String name;
   final String email;
   final UserRole role;
+  final bool isOnline; // ✅ Track online status
+  final List<Task> assignedTasks; // ✅ Store assigned tasks
 
   UserModel({
     required this.id,
     required this.name,
     required this.email,
     required this.role,
+    this.isOnline = false, // Default to offline
+    this.assignedTasks = const [], // Default to an empty list
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String? ?? '', // ✅ Default to empty string if missing
+      id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? 'Unknown',
       email: json['email'] as String? ?? 'No Email',
       role: _parseUserRole(json['role'] as String?),
+      isOnline: json['is_online'] as bool? ?? false,
+      assignedTasks: (json['tasks'] as List<dynamic>?)
+              ?.map((taskJson) => Task.fromJson(taskJson as Map<String, dynamic>))
+              .toList() ??
+          [], // ✅ Parse tasks from JSON
     );
   }
 
   static UserRole _parseUserRole(String? roleString) {
-    if (roleString == null) return UserRole.cameraman; // ✅ Default role
-
     switch (roleString) {
       case 'admin':
         return UserRole.admin;
@@ -38,7 +46,7 @@ class UserModel {
       case 'headOfDepartment':
         return UserRole.headOfDepartment;
       default:
-        return UserRole.cameraman; // ✅ Safe fallback
+        return UserRole.reporter; // Default role
     }
   }
 
@@ -52,6 +60,8 @@ class UserModel {
       'name': name,
       'email': email,
       'role': roleToString(),
+      'is_online': isOnline,
+      'tasks': assignedTasks.map((task) => task.toJson()).toList(), // ✅ Convert tasks to JSON
     };
   }
 }

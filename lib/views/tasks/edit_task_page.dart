@@ -1,4 +1,3 @@
-// views/tasks/edit_task_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +24,7 @@ class EditTaskPageState extends State<EditTaskPage> {
   bool isCompleted = false;
   DateTime? dueDate;
   late Task task;
+  List<UserModel> assignableUsers = [];
 
   @override
   void initState() {
@@ -40,6 +40,15 @@ class EditTaskPageState extends State<EditTaskPage> {
     selectedUserId = task.assignedTo;
     isCompleted = task.isCompleted;
     dueDate = task.dueDate;
+
+    _fetchAssignableUsers();
+  }
+
+  Future<void> _fetchAssignableUsers() async {
+    final users = await authController.fetchAssignableUsers();
+    setState(() {
+      assignableUsers = users;
+    });
   }
 
   @override
@@ -60,62 +69,62 @@ class EditTaskPageState extends State<EditTaskPage> {
 
     taskController.updateTask(updatedTask);
     Get.back();
+    Get.snackbar(
+      "Success",
+      "Task updated successfully!",
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.green,
+      colorText: Colors.white,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Task')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Edit Task'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchAssignableUsers,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: titleController,
-              decoration: const InputDecoration(labelText: 'Task Title'),
+              decoration: const InputDecoration(
+                labelText: 'Task Title',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Task Description'),
+              decoration: const InputDecoration(
+                labelText: 'Task Description',
+                border: OutlineInputBorder(),
+              ),
               maxLines: 3,
             ),
             const SizedBox(height: 16),
-            FutureBuilder<List<UserModel>>(
-              future: authController.fetchAllUsers(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                      child: Text('Error loading users: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No users found.'));
-                }
-
-                final users = snapshot.data!
-                    .where((user) =>
-                        user.role == UserRole.cameraman ||
-                        user.role == UserRole.reporter)
-                    .toList();
-
-                return DropdownButtonFormField<String>(
-                  value: selectedUserId,
-                  decoration: const InputDecoration(labelText: 'Assign To'),
-                  items: users.map((user) {
-                    return DropdownMenuItem(
-                      value: user.id,
-                      child: Text(user.name),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedUserId = value;
-                    });
-                  },
+            DropdownButtonFormField<UserModel>(
+              value: assignableUsers.firstWhereOrNull((user) => user.id == selectedUserId),
+              decoration: const InputDecoration(labelText: 'Reassign To'),
+              hint: const Text("Select User"),
+              items: assignableUsers.map((user) {
+                return DropdownMenuItem(
+                  value: user,
+                  child: Text('${user.name} (${user.roleToString()})'),
                 );
+              }).toList(),
+              onChanged: (UserModel? newValue) {
+                setState(() {
+                  selectedUserId = newValue?.id;
+                });
               },
             ),
             const SizedBox(height: 16),
@@ -153,6 +162,9 @@ class EditTaskPageState extends State<EditTaskPage> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _updateTask,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
               child: const Text('Update Task'),
             ),
           ],

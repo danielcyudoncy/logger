@@ -1,4 +1,3 @@
-// views/home/head_of_depatment_home_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -22,13 +21,26 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
       Get.put(TaskController(), permanent: true);
 
   String selectedFilter = "All"; // Default filter
+  List<UserModel> filteredUsers = [];
 
   @override
   void initState() {
     super.initState();
-    if (authController.user.value != null) {
-      taskController.fetchTasksForUser(
-          authController.user.value!.id); // ✅ Fetch tasks assigned to HoD
+    _fetchUsers();
+    _fetchTasks();
+  }
+
+  void _fetchUsers() async {
+    final users = await authController.fetchUsersForHoD();
+    setState(() {
+      filteredUsers = users;
+    });
+  }
+
+  void _fetchTasks() {
+    final user = authController.user.value;
+    if (user != null) {
+      taskController.fetchTasksForUser(user.id);
     }
   }
 
@@ -41,8 +53,10 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                taskController.fetchTasksForUser(authController.user.value!.id),
+            onPressed: () {
+              _fetchUsers();
+              _fetchTasks();
+            },
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -170,7 +184,7 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
   void _assignTaskDialog() {
     TextEditingController titleController = TextEditingController();
     DateTime? selectedDate;
-    UserModel? selectedCameraman;
+    UserModel? selectedUser;
 
     Get.defaultDialog(
       title: "Assign Task",
@@ -181,28 +195,19 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
             decoration: const InputDecoration(labelText: "Task Title"),
           ),
           const SizedBox(height: 10),
-          FutureBuilder<List<UserModel>>(
-            future: authController.fetchAllUsers(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text("No cameramen found.");
-              }
-              final cameramen = snapshot.data!
-                  .where((user) => user.role == UserRole.cameraman)
-                  .toList();
-              return DropdownButton<UserModel>(
-                hint: const Text("Select Cameraman"),
-                value: selectedCameraman,
-                items: cameramen.map((UserModel user) {
-                  return DropdownMenuItem<UserModel>(
-                    value: user,
-                    child: Text(user.name),
-                  );
-                }).toList(),
-                onChanged: (UserModel? newValue) {
-                  selectedCameraman = newValue;
-                },
+          DropdownButton<UserModel>(
+            hint: const Text("Select User"),
+            value: selectedUser,
+            items: filteredUsers.map((UserModel user) {
+              return DropdownMenuItem<UserModel>(
+                value: user,
+                child: Text(user.name),
               );
+            }).toList(),
+            onChanged: (UserModel? newValue) {
+              setState(() {
+                selectedUser = newValue;
+              });
             },
           ),
           const SizedBox(height: 10),
@@ -215,7 +220,9 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
                 lastDate: DateTime(2100),
               );
               if (picked != null) {
-                selectedDate = picked;
+                setState(() {
+                  selectedDate = picked;
+                });
               }
             },
             child: const Text("Select Due Date"),
@@ -227,7 +234,7 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
       confirmTextColor: Colors.white,
       onConfirm: () {
         if (titleController.text.isEmpty ||
-            selectedCameraman == null ||
+            selectedUser == null ||
             selectedDate == null) {
           Get.snackbar("Error", "Please fill all fields");
           return;
@@ -237,8 +244,8 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title: titleController.text.trim(),
           description: "",
-          assignedTo: selectedCameraman!.id,
-          assignedToName: selectedCameraman!.name,
+          assignedTo: selectedUser!.id,
+          assignedToName: selectedUser!.name,
           createdBy: authController.user.value!.id,
           createdByName: authController.user.value!.name,
           isCompleted: false,

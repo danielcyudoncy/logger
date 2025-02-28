@@ -1,6 +1,7 @@
 // controllers/auth_controller.dart
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:logger/models/task_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../routes/app_routes.dart';
@@ -149,26 +150,148 @@ class AuthController extends GetxController {
   }
 
   // ✅ Fixed `fetchAllUsers()`: Improved Error Handling
-  Future<List<UserModel>> fetchAllUsers() async {
-    try {
-      final List<dynamic> response = await _supabase.from('users').select();
+ Future<List<UserModel>> fetchAllUsersExcludingCurrent() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null) return [];
 
-      if (response.isEmpty) {
-        return [];
-      }
+    final List<dynamic> response = await _supabase.from('users').select();
 
-      return response
-          .map<UserModel>(
-              (json) => UserModel.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (error) {
-      if (kDebugMode) {
-        print("Get Users Error: $error");
-      }
-      Get.snackbar("Error", "Failed to fetch users: ${error.toString()}");
-      return [];
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) => UserModel.fromJson(json as Map<String, dynamic>))
+        .where((u) => u.id != currentUser.id) // Exclude the logged-in user
+        .toList();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Get Users Error: $error");
     }
+    Get.snackbar("Error", "Failed to fetch users");
+    return [];
   }
+}
+
+Future<List<UserModel>> fetchUsersForHoD() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null) return [];
+
+    final List<dynamic> response = await _supabase.from('users').select();
+
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) => UserModel.fromJson(json as Map<String, dynamic>))
+        .where((u) =>
+            u.id != currentUser.id && // Exclude the logged-in HoD
+            (u.role == UserRole.assignmentEditor ||
+             u.role == UserRole.cameraman ||
+             u.role == UserRole.reporter)) // Show only specific roles
+        .toList();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Fetch HoD Users Error: $error");
+    }
+    Get.snackbar("Error", "Failed to fetch users");
+    return [];
+  }
+}
+
+Future<List<UserModel>> fetchAssignableUsers() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null) return [];
+
+    final List<dynamic> response = await _supabase.from('users').select();
+
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) => UserModel.fromJson(json as Map<String, dynamic>))
+        .where((u) =>
+            u.id != currentUser.id && // Exclude logged-in user
+            (
+              (currentUser.role == UserRole.admin) || // Admin can assign to anyone
+              (currentUser.role == UserRole.headOfDepartment &&
+                  (u.role == UserRole.assignmentEditor ||
+                   u.role == UserRole.cameraman ||
+                   u.role == UserRole.reporter)) || // HoD assigns to these roles
+              (currentUser.role == UserRole.assignmentEditor &&
+                  (u.role == UserRole.cameraman ||
+                   u.role == UserRole.reporter)) // Editor assigns to these roles
+            ))
+        .toList();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Fetch Assignable Users Error: $error");
+    }
+    Get.snackbar("Error", "Failed to fetch users");
+    return [];
+  }
+}
+
+Future<List<UserModel>> fetchUsersForManagement() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null) return [];
+
+    final List<dynamic> response = await _supabase.from('users').select();
+
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) => UserModel.fromJson(json as Map<String, dynamic>))
+        .where((u) => u.id != currentUser.id) // Exclude logged-in user
+        .toList();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Fetch Users Error: $error");
+    }
+    Get.snackbar("Error", "Failed to fetch users");
+    return [];
+  }
+}
+
+Future<List<UserModel>> fetchUsersWithTasks() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null || currentUser.role != UserRole.admin) return [];
+
+    final List<dynamic> response = await _supabase
+        .from('users')
+        .select('*, tasks:tasks!tasks_assigned_to_fkey(*)'); // ✅ Fetch only assigned tasks
+
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) {
+          return UserModel(
+            id: json['id'],
+            name: json['name'],
+            email: json['email'],
+            role: _parseUserRole(json['role']),
+            assignedTasks: (json['tasks'] as List<dynamic>?)
+                    ?.map((taskJson) =>
+                        Task.fromJson(taskJson as Map<String, dynamic>))
+                    .toList() ??
+                [],
+          );
+        })
+        .where((u) => u.id != currentUser.id) // ✅ Exclude logged-in admin
+        .toList();
+  } catch (error) {
+    if (kDebugMode) {
+      print("Fetch Users with Tasks Error: $error");
+    }
+    Get.snackbar("Error", "Failed to fetch users and their tasks");
+    return [];
+  }
+}
+
+
+
+
 
   // ✅ User Deletion Now Works Correctly
   Future<void> deleteUser(String userId) async {
@@ -179,6 +302,29 @@ class AuthController extends GetxController {
       Get.snackbar("Error", "Failed to delete user: ${error.toString()}");
     }
   }
+
+  Future<List<UserModel>> fetchOnlineUsers() async {
+  try {
+    final currentUser = user.value;
+    if (currentUser == null) return [];
+
+    final List<dynamic> response = await _supabase
+        .from('users')
+        .select()
+        .eq('is_online', true); // ✅ Fetch only users who are online
+
+    if (response.isEmpty) return [];
+
+    return response
+        .map<UserModel>((json) => UserModel.fromJson(json as Map<String, dynamic>))
+        .where((u) => u.id != currentUser.id) // ✅ Exclude logged-in admin
+        .toList();
+  } catch (error) {
+    Get.snackbar("Error", "Failed to fetch online users");
+    return [];
+  }
+}
+
 
   Future<void> logout() async {
     try {
