@@ -75,7 +75,8 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
           // ✅ Task List
           Expanded(
             child: Obx(() {
-              final allTasks = taskController.getAllTasks().toList();
+              final allTasks =
+                  taskController.tasks.toList(); // ✅ Use fetched tasks list
               final tasks = _filterTasks(allTasks);
 
               if (tasks.isEmpty) {
@@ -145,7 +146,7 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Assigned to: ${task.assignedToName}'),
+            Text('Assigned to: ${task.assignedToName ?? "Unassigned"}'),
             Text('Created by: ${task.createdByName}'),
             if (task.dueDate != null)
               Text(
@@ -202,10 +203,9 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
           ),
           const SizedBox(height: 10),
           Obx(() {
-            final reporters = userController
-                .getAllUsers()
+            final reporters = userController.users
                 .where((user) => user.role == UserRole.reporter)
-                .toList();
+                .toList(); // ✅ Fix: Use `users` directly
             return DropdownButton<UserModel>(
               hint: const Text("Select Reporter"),
               value: selectedReporter,
@@ -216,7 +216,9 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
                 );
               }).toList(),
               onChanged: (UserModel? newValue) {
-                selectedReporter = newValue;
+                setState(() {
+                  selectedReporter = newValue;
+                });
               },
             );
           }),
@@ -230,7 +232,9 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
                 lastDate: DateTime(2100),
               );
               if (picked != null) {
-                selectedDate = picked;
+                setState(() {
+                  selectedDate = picked;
+                });
               }
             },
             child: const Text("Select Due Date"),

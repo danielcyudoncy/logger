@@ -1,7 +1,6 @@
 // views/home/cameraman_home_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/task_controller.dart';
 import '../../models/task_model.dart';
@@ -14,15 +13,20 @@ class CameramanHomePage extends StatefulWidget {
 }
 
 class _CameramanHomePageState extends State<CameramanHomePage> {
-  final AuthController authController =
-      Get.put(AuthController(), permanent: true);
-  final TaskController taskController =
-      Get.put(TaskController(), permanent: true);
+  final AuthController authController = Get.find<AuthController>();
+  final TaskController taskController = Get.find<TaskController>();
 
   @override
   void initState() {
     super.initState();
-    taskController.fetchTasksForUser(authController.user.value!.id);
+    _fetchTasks();
+  }
+
+  void _fetchTasks() {
+    final user = authController.user.value;
+    if (user != null) {
+      taskController.fetchTasksForUser(user.id);
+    }
   }
 
   @override
@@ -32,87 +36,68 @@ class _CameramanHomePageState extends State<CameramanHomePage> {
         title: Obx(() =>
             Text('Welcome, ${authController.user.value?.name ?? "Cameraman"}')),
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchTasks),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () =>
-                taskController.fetchTasksForUser(authController.user.value!.id),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => authController.logout(),
-          ),
+              icon: const Icon(Icons.logout), onPressed: authController.logout),
         ],
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
-          Expanded(
-            child: Obx(() {
-              final tasks =
-                  taskController.getTasksForUser(authController.user.value!.id);
-              if (tasks.isEmpty) {
-                return const Center(child: Text("No tasks assigned to you."));
-              }
-              return ListView.builder(
-                itemCount: tasks.length,
-                itemBuilder: (context, index) {
-                  final task = tasks[index];
-                  return _taskCard(task);
-                },
-              );
-            }),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () =>
-            taskController.fetchTasksForUser(authController.user.value!.id),
-        child: const Icon(Icons.refresh),
-      ),
-    );
-  }
+      body: Obx(() {
+        if (taskController.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-  Widget _taskCard(Task task) {
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        title: Text(task.title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Text('Assigned by: ${task.createdByName}'),
-            if (task.dueDate != null)
-              Text(
-                  'Due Date: ${DateFormat.yMMMd().add_jm().format(task.dueDate!)}',
-                  style: const TextStyle(color: Colors.red)),
+            // ✅ Section for Created Tasks
+            _sectionHeader("Tasks Created"),
+            taskController.userCreatedTasks.isEmpty
+                ? _emptyState("No tasks created.")
+                : _taskList(taskController.userCreatedTasks),
+
+            const SizedBox(height: 20),
+
+            // ✅ Section for Assigned Tasks
+            _sectionHeader("Tasks Assigned"),
+            taskController.userAssignedTasks.isEmpty
+                ? _emptyState("No tasks assigned.")
+                : _taskList(taskController.userAssignedTasks),
           ],
-        ),
-        trailing: task.isCompleted
-            ? const Icon(Icons.check, color: Colors.green)
-            : IconButton(
-                icon: const Icon(Icons.upload_file, color: Colors.blue),
-                onPressed: () => _uploadCompletedWork(task)),
+        );
+      }),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _emptyState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Text(message,
+            style: const TextStyle(fontSize: 16, color: Colors.grey)),
       ),
     );
   }
 
-  void _uploadCompletedWork(Task task) {
-    TextEditingController linkController = TextEditingController();
-    Get.defaultDialog(
-      title: "Upload Completed Work",
-      content: TextField(
-          controller: linkController,
-          decoration: const InputDecoration(labelText: "File Link")),
-      textConfirm: "Submit",
-      textCancel: "Cancel",
-      onConfirm: () {
-        Task updatedTask =
-            task.copyWith(isCompleted: true, status: "completed");
-        taskController.updateTask(updatedTask);
-        Get.back();
-      },
+  Widget _taskList(List<Task> tasks) {
+    return Column(
+      children: tasks.map((task) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: ListTile(
+            title: Text(task.title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Due: ${task.dueDate}'),
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -1,3 +1,4 @@
+// views/home/head_of_depatment_home_page.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -87,7 +88,7 @@ class _HeadOfDepartmentHomePageState extends State<HeadOfDepartmentHomePage> {
             child: Obx(() {
               final allTasks =
                   taskController.getTasksForUser(authController.user.value!.id);
-              final tasks = _filterTasks(allTasks);
+              final tasks = _filterTasks(allTasks as List<Task>);
 
               if (tasks.isEmpty) {
                 return const Center(child: Text("No tasks assigned to you."));

@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleLogin() async {
+    FocusScope.of(context).unfocus(); // Dismiss keyboard
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
@@ -48,38 +49,48 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                  obscureText: true,
+                ),
+                const SizedBox(height: 24),
+                Obx(() => ElevatedButton(
+                      onPressed:
+                          authController.isLoading.value ? null : _handleLogin,
+                      child: authController.isLoading.value
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Login'),
+                    )),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => Get.toNamed(Routes.register),
+                  child: const Text('Create an account'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
+          ),
+          if (authController.isLoading.value)
+            Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
             ),
-            const SizedBox(height: 24),
-            Obx(() => ElevatedButton(
-                  onPressed:
-                      authController.isLoading.value ? null : _handleLogin,
-                  child: authController.isLoading.value
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Login'),
-                )),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Get.toNamed(Routes.register),
-              child: const Text('Create an account'),
-            ),
-          ],
-        ),
+        ],
       ),
     );
+
   }
 }

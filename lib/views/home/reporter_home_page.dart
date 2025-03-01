@@ -84,7 +84,7 @@ class _ReporterHomePageState extends State<ReporterHomePage> {
               }
 
               final allTasks = taskController.getTasksForUser(user.id);
-              final tasks = _filterTasks(allTasks);
+              final tasks = _filterTasks(allTasks as List<Task>);
 
               if (tasks.isEmpty) {
                 return const Center(child: Text("No tasks assigned to you."));

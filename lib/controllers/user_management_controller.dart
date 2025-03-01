@@ -26,9 +26,7 @@ class UserManagementController extends GetxController {
       }
 
       users.assignAll(
-        response
-            .map<UserModel>((json) => UserModel.fromJson(json))
-            .toList(), // ✅ Fixed
+        response.map<UserModel>((json) => UserModel.fromJson(json)).toList(),
       );
     } catch (e) {
       if (kDebugMode) {
@@ -39,7 +37,6 @@ class UserManagementController extends GetxController {
       isLoading.value = false;
     }
   }
-
 
   Future<void> deleteUser(String userId) async {
     try {
@@ -54,7 +51,6 @@ class UserManagementController extends GetxController {
     }
   }
 
-  List<UserModel> getAllUsers() {
-    return users.toList();
-  }
+  // ✅ Replace `getAllUsers()` function with a `getter`
+  List<UserModel> get allUsers => users.toList();
 }

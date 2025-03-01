@@ -1,4 +1,5 @@
 // controllers/task_controller.dart
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:logger/controllers/auth_controller.dart';
 import 'package:logger/models/task_repository.dart';
@@ -6,30 +7,33 @@ import '../models/task_model.dart';
 
 class TaskController extends GetxController {
   final TaskRepository _repository = TaskRepository();
-  final RxList<Task> tasks = <Task>[].obs;
+
+  // ✅ Separate lists for created and assigned tasks
+  final RxList<Task> userCreatedTasks = <Task>[].obs;
+  final RxList<Task> userAssignedTasks = <Task>[].obs;
+  final RxList<Task> tasks =
+      <Task>[].obs; // Stores all tasks for Admins/Editors
+
   final RxBool isLoading = false.obs;
   final RxString error = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
-    if (Get.find<AuthController>().user.value != null) {
-      fetchTasksForUser(Get.find<AuthController>().user.value!.id);
+    final user = Get.find<AuthController>().user.value;
+    if (user != null) {
+      fetchTasksForUser(user.id);
     }
   }
 
-  // ✅ Get All Tasks
-  RxList<Task> getAllTasks() {
-    return tasks;
-  }
-
-  // ✅ Fetch All Tasks for Admin & Assignment Editors
+  // ✅ Fetch all tasks (for Admins & Assignment Editors)
   Future<void> fetchAllTasks() async {
     try {
       isLoading.value = true;
       error.value = '';
-      final fetchedTasks = await _repository.getAllTasks();
-      tasks.assignAll(fetchedTasks);
+
+      final List<Task> response = await _repository.getAllTasks();
+      tasks.assignAll(response);
     } catch (e) {
       error.value = 'Failed to fetch tasks: ${e.toString()}';
       Get.snackbar('Error', 'Failed to fetch tasks',
@@ -39,13 +43,18 @@ class TaskController extends GetxController {
     }
   }
 
-  // ✅ Fetch Tasks Assigned to a Specific User (Cameraman)
+  // ✅ Fetch tasks assigned to and created by a specific user (Cameraman/Reporter)
   Future<void> fetchTasksForUser(String userId) async {
     try {
       isLoading.value = true;
       error.value = '';
-      final userTasks = await _repository.getTasksForUser(userId);
-      tasks.assignAll(userTasks);
+
+      final List<Task> createdTasks = await _repository.getCreatedTasks(userId);
+      final List<Task> assignedTasks =
+          await _repository.getAssignedTasks(userId);
+
+      userCreatedTasks.assignAll(createdTasks);
+      userAssignedTasks.assignAll(assignedTasks);
     } catch (e) {
       error.value = 'Failed to fetch tasks: ${e.toString()}';
       Get.snackbar('Error', 'Failed to fetch tasks',
@@ -55,9 +64,21 @@ class TaskController extends GetxController {
     }
   }
 
-  // ✅ Get Tasks for Cameraman
-  List<Task> getTasksForUser(String userId) {
-    return tasks.where((task) => task.assignedTo == userId).toList();
+  // ✅ Fetch only unassigned tasks (for Admins & Editors)
+  Future<void> fetchUnassignedTasks() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+
+      final List<Task> response = await _repository.getUnassignedTasks();
+      tasks.assignAll(response);
+    } catch (e) {
+      error.value = 'Failed to fetch unassigned tasks: ${e.toString()}';
+      Get.snackbar('Error', 'Failed to fetch unassigned tasks',
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // ✅ Create a Task
@@ -65,14 +86,56 @@ class TaskController extends GetxController {
     try {
       isLoading.value = true;
       error.value = '';
-      final newTask = await _repository.createTask(task);
-      tasks.add(newTask!);
-      Get.back();
-      Get.snackbar('Success', 'Task created successfully',
-          snackPosition: SnackPosition.BOTTOM);
+
+      if (kDebugMode) {
+        print("Creating Task: ${task.toJson()}");
+      }
+
+      final Task? response = await _repository.createTask(task);
+
+      if (response != null) {
+        tasks.add(response);
+        Get.snackbar("Success", "Task created successfully",
+            snackPosition: SnackPosition.BOTTOM);
+
+        if (kDebugMode) {
+          print("Task created successfully in Supabase: ${response.toJson()}");
+        }
+      } else {
+        if (kDebugMode) {
+          print("Error: Task creation response was null.");
+        }
+      }
     } catch (e) {
       error.value = 'Failed to create task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to create task',
+      Get.snackbar('Error', 'Failed to create task: $e',
+          snackPosition: SnackPosition.BOTTOM);
+      if (kDebugMode) {
+        print("Error creating task: $e");
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ✅ Assign Task to a Reporter
+  Future<void> assignTask(
+      String taskId, String reporterId, String reporterName) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+
+      final bool success = await _repository.updateTaskAssignment(
+          taskId, reporterId, reporterName);
+
+      if (success) {
+        tasks.removeWhere((task) => task.id == taskId);
+        Get.snackbar("Success", "Task assigned successfully",
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      error.value = 'Failed to assign task: ${e.toString()}';
+      Get.snackbar('Error', 'Failed to assign task',
           snackPosition: SnackPosition.BOTTOM);
     } finally {
       isLoading.value = false;
@@ -84,11 +147,14 @@ class TaskController extends GetxController {
     try {
       isLoading.value = true;
       error.value = '';
-      final updatedTask = await _repository.updateTask(task);
-      final index = tasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        tasks[index] = updatedTask!;
+
+      final Task? updatedTask = await _repository.updateTask(task);
+      final int index = tasks.indexWhere((t) => t.id == task.id);
+
+      if (index != -1 && updatedTask != null) {
+        tasks[index] = updatedTask;
       }
+
       Get.snackbar('Success', 'Task updated successfully',
           snackPosition: SnackPosition.BOTTOM);
     } catch (e) {
@@ -100,13 +166,33 @@ class TaskController extends GetxController {
     }
   }
 
-  // ✅ Mark Task as Completed
+  // ✅ Toggle Task Completion (e.g., Mark as Completed)
   Future<void> toggleTaskCompletion(Task task) async {
-    final updatedTask = task.copyWith(
+    final Task updatedTask = task.copyWith(
       isCompleted: !task.isCompleted,
       status: !task.isCompleted ? 'completed' : 'pending',
     );
     await updateTask(updatedTask);
+  }
+
+  // ✅ Delete Task
+  Future<void> deleteTask(String taskId) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+
+      await _repository.deleteTask(taskId);
+      tasks.removeWhere((task) => task.id == taskId);
+
+      Get.snackbar('Success', 'Task deleted successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      error.value = 'Failed to delete task: ${e.toString()}';
+      Get.snackbar('Error', 'Failed to delete task',
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // ✅ Get Tasks by Status
@@ -119,19 +205,20 @@ class TaskController extends GetxController {
     return tasks.where((task) => task.assignedTo == userId).toList();
   }
 
-  // ✅ Delete Task
-  Future<void> deleteTask(String taskId) async {
+  // ✅ Fetch tasks assigned to a specific user (Cameraman or Reporter)
+  Future<List<Task>> getTasksForUser(String userId) async {
     try {
       isLoading.value = true;
       error.value = '';
-      await _repository.deleteTask(taskId);
-      tasks.removeWhere((task) => task.id == taskId);
-      Get.snackbar('Success', 'Task deleted successfully',
-          snackPosition: SnackPosition.BOTTOM);
+
+      final List<Task> assignedTasks =
+          await _repository.getAssignedTasks(userId);
+      final List<Task> createdTasks = await _repository.getCreatedTasks(userId);
+
+      return [...assignedTasks, ...createdTasks]; // ✅ Combine after awaiting
     } catch (e) {
-      error.value = 'Failed to delete task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to delete task',
-          snackPosition: SnackPosition.BOTTOM);
+      print("❌ Error fetching tasks for user: $e");
+      return [];
     } finally {
       isLoading.value = false;
     }
