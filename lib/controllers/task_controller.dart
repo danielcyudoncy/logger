@@ -24,14 +24,54 @@ class TaskController extends GetxController {
     if (user != null) {
       fetchTasksForUser(user.id);
     }
+    listenForTaskUpdates(); // ✅ Enable real-time updates
+  }
+
+  // ✅ Cameraman Creates Task
+  Future<void> createTask(Task task) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+
+      final Task? response = await _repository.createTask(task);
+      if (response != null) {
+        tasks.add(response);
+        Get.snackbar("Success", "Task created successfully",
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      error.value = 'Failed to create task: ${e.toString()}';
+      Get.snackbar('Error', 'Failed to create task: $e',
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ✅ Update Task
+  Future<void> updateTask(Task task) async {
+    try {
+      isLoading.value = true;
+      final Task? updatedTask = await _repository.updateTask(task);
+      final int index = tasks.indexWhere((t) => t.id == task.id);
+      if (index != -1 && updatedTask != null) {
+        tasks[index] = updatedTask;
+      }
+      Get.snackbar('Success', 'Task updated successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      error.value = 'Failed to update task: ${e.toString()}';
+      Get.snackbar('Error', 'Failed to update task',
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   // ✅ Fetch all tasks (for Admins & Assignment Editors)
   Future<void> fetchAllTasks() async {
     try {
       isLoading.value = true;
-      error.value = '';
-
       final List<Task> response = await _repository.getAllTasks();
       tasks.assignAll(response);
     } catch (e) {
@@ -47,12 +87,8 @@ class TaskController extends GetxController {
   Future<void> fetchTasksForUser(String userId) async {
     try {
       isLoading.value = true;
-      error.value = '';
-
       final List<Task> createdTasks = await _repository.getCreatedTasks(userId);
-      final List<Task> assignedTasks =
-          await _repository.getAssignedTasks(userId);
-
+      final List<Task> assignedTasks = await _repository.getAssignedTasks(userId);
       userCreatedTasks.assignAll(createdTasks);
       userAssignedTasks.assignAll(assignedTasks);
     } catch (e) {
@@ -64,163 +100,27 @@ class TaskController extends GetxController {
     }
   }
 
-  // ✅ Fetch only unassigned tasks (for Admins & Editors)
-  Future<void> fetchUnassignedTasks() async {
-    try {
-      isLoading.value = true;
-      error.value = '';
-
-      final List<Task> response = await _repository.getUnassignedTasks();
-      tasks.assignAll(response);
-    } catch (e) {
-      error.value = 'Failed to fetch unassigned tasks: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to fetch unassigned tasks',
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // ✅ Create a Task
-  Future<void> createTask(Task task) async {
-    try {
-      isLoading.value = true;
-      error.value = '';
-
-      if (kDebugMode) {
-        print("Creating Task: ${task.toJson()}");
-      }
-
-      final Task? response = await _repository.createTask(task);
-
-      if (response != null) {
-        tasks.add(response);
-        Get.snackbar("Success", "Task created successfully",
-            snackPosition: SnackPosition.BOTTOM);
-
-        if (kDebugMode) {
-          print("Task created successfully in Supabase: ${response.toJson()}");
-        }
-      } else {
-        if (kDebugMode) {
-          print("Error: Task creation response was null.");
-        }
-      }
-    } catch (e) {
-      error.value = 'Failed to create task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to create task: $e',
-          snackPosition: SnackPosition.BOTTOM);
-      if (kDebugMode) {
-        print("Error creating task: $e");
-      }
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // ✅ Assign Task to a Reporter
-  Future<void> assignTask(
-      String taskId, String reporterId, String reporterName) async {
-    try {
-      isLoading.value = true;
-      error.value = '';
-
-      final bool success = await _repository.updateTaskAssignment(
-          taskId, reporterId, reporterName);
-
-      if (success) {
-        tasks.removeWhere((task) => task.id == taskId);
-        Get.snackbar("Success", "Task assigned successfully",
-            snackPosition: SnackPosition.BOTTOM);
-      }
-    } catch (e) {
-      error.value = 'Failed to assign task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to assign task',
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // ✅ Update Task (e.g., Cameraman Uploading Work)
-  Future<void> updateTask(Task task) async {
-    try {
-      isLoading.value = true;
-      error.value = '';
-
-      final Task? updatedTask = await _repository.updateTask(task);
-      final int index = tasks.indexWhere((t) => t.id == task.id);
-
-      if (index != -1 && updatedTask != null) {
-        tasks[index] = updatedTask;
-      }
-
-      Get.snackbar('Success', 'Task updated successfully',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      error.value = 'Failed to update task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to update task',
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // ✅ Toggle Task Completion (e.g., Mark as Completed)
-  Future<void> toggleTaskCompletion(Task task) async {
-    final Task updatedTask = task.copyWith(
-      isCompleted: !task.isCompleted,
-      status: !task.isCompleted ? 'completed' : 'pending',
-    );
-    await updateTask(updatedTask);
-  }
-
-  // ✅ Delete Task
-  Future<void> deleteTask(String taskId) async {
-    try {
-      isLoading.value = true;
-      error.value = '';
-
-      await _repository.deleteTask(taskId);
-      tasks.removeWhere((task) => task.id == taskId);
-
-      Get.snackbar('Success', 'Task deleted successfully',
-          snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
-      error.value = 'Failed to delete task: ${e.toString()}';
-      Get.snackbar('Error', 'Failed to delete task',
-          snackPosition: SnackPosition.BOTTOM);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // ✅ Get Tasks by Status
-  List<Task> getTasksByStatus(String status) {
-    return tasks.where((task) => task.status == status).toList();
-  }
-
-  // ✅ Get Tasks Assigned to Specific User
-  List<Task> getTasksByAssignee(String userId) {
-    return tasks.where((task) => task.assignedTo == userId).toList();
-  }
-
-  // ✅ Fetch tasks assigned to a specific user (Cameraman or Reporter)
+  // ✅ Fetch tasks for a specific user
   Future<List<Task>> getTasksForUser(String userId) async {
     try {
       isLoading.value = true;
-      error.value = '';
-
-      final List<Task> assignedTasks =
-          await _repository.getAssignedTasks(userId);
+      final List<Task> assignedTasks = await _repository.getAssignedTasks(userId);
       final List<Task> createdTasks = await _repository.getCreatedTasks(userId);
-
-      return [...assignedTasks, ...createdTasks]; // ✅ Combine after awaiting
+      return [...assignedTasks, ...createdTasks]; // ✅ Combine lists
     } catch (e) {
-      print("❌ Error fetching tasks for user: $e");
+      if (kDebugMode) {
+        print("❌ Error fetching tasks for user: $e");
+      }
       return [];
     } finally {
       isLoading.value = false;
     }
+  }
+
+  // ✅ Listen for Real-Time Task Updates
+  void listenForTaskUpdates() {
+    _repository.listenForTaskUpdates((List<Task> updatedTasks) {
+      tasks.assignAll(updatedTasks);
+    });
   }
 }
