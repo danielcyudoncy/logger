@@ -146,7 +146,7 @@ class _AssignmentEditorHomePageState extends State<AssignmentEditorHomePage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Assigned to: ${task.assignedToName ?? "Unassigned"}'),
+            Text('Assigned to: ${task.assignedToName}'),
             Text('Created by: ${task.createdByName}'),
             if (task.dueDate != null)
               Text(

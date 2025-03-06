@@ -1,8 +1,11 @@
 // controllers/auth_controller.dart
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:path/path.dart' as path;
 import '../models/user_model.dart';
 import '../routes/app_routes.dart';
 
@@ -157,6 +160,37 @@ Future<List<UserModel>> fetchOnlineUsers() async {
           .map<UserModel>((json) => UserModel.fromJson(json))
           .toList();
     });
+  }
+
+  Future<void> uploadProfilePicture(File image) async {
+    try {
+      isLoading.value = true;
+      final userId = user.value?.id;
+      if (userId == null) throw 'User not found';
+      final fileName = path.basename(image.path);
+      final filePath = 'profile_pictures/$userId/$fileName';
+      final response =
+          await _supabase.storage.from('profiles').upload(filePath, image);
+
+      if (response.isEmpty) {
+        throw 'Failed to upload profile picture';
+      }
+
+      final imageUrl =
+          _supabase.storage.from('profiles').getPublicUrl(filePath);
+      await _supabase
+          .from('users')
+          .update({'profile_picture': imageUrl}).eq('id', userId);
+      user.value = user.value?.copyWith(profilePicture: imageUrl);
+
+      Get.snackbar('Success', 'Profile picture updated successfully',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to upload profile picture: $e',
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<List<UserModel>> fetchUsersForHoD() async {
